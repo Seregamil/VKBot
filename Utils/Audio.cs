@@ -11,14 +11,9 @@ using System.ComponentModel;
 
 namespace VK_bot.Utils
 {
-    /*
-        TODO: Сверка по хешам, дабы повторно не качать одинаковый файл
-    */
-
     public static class Audio
     {
         private static Regex fileNamePattern = new Regex("[\\|/*?\"<:>]");
-
         public static void Download(VkNet.Model.Attachments.Audio audio, string folder)
         {
             if (!Directory.Exists(folder))
@@ -30,12 +25,22 @@ namespace VK_bot.Utils
             var title = $"{audio.Artist} - {audio.Title}";
             title = fileNamePattern.Replace(title, "");
 
-            WebClient client = new WebClient();
+            var path = $"{folder}/{title}.mp3";
+            if(File.Exists(path)) {
+                var fileSize = new FileInfo(path).Length;
+                var urlSize = GetFileSize(url.ToString());
 
+                if(fileSize == urlSize) { // local = web
+                    Console.WriteLine($"Audio {title} already exists. \tCancel download");
+                    return;
+                }
+            }
+
+            WebClient client = new WebClient();
             Console.Write($"Downloading {title}");
             
             try {
-                client.DownloadFile(url, $"{folder}/{title}.mp3");
+                client.DownloadFile(url, path);
                 Console.Write("\t\t\tSuccess!\n");
             }
             catch(Exception e) {
@@ -55,6 +60,23 @@ namespace VK_bot.Utils
             segments[segments.Count - 1] = segments[segments.Count - 1].Replace("/", ".mp3");
 
             return new Uri($"{audioUrl.Scheme}://{audioUrl.Host}{string.Join("", segments)}{audioUrl.Query}");
+        }
+
+        private static long GetFileSize(string url)
+        {
+            long result = -1;
+
+            System.Net.WebRequest req = System.Net.WebRequest.Create(url);
+            req.Method = "HEAD";
+            using (System.Net.WebResponse resp = req.GetResponse())
+            {
+                if (long.TryParse(resp.Headers.Get("Content-Length"), out long ContentLength))
+                {
+                    result = ContentLength;
+                }
+            }
+
+            return result;
         }
     }
 }
