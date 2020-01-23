@@ -7,6 +7,7 @@ using VkNet.Model.RequestParams;
 using System.IO;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.ComponentModel;
 
 namespace VK_bot.Utils
 {
@@ -18,52 +19,34 @@ namespace VK_bot.Utils
     {
         private static Regex fileNamePattern = new Regex("[\\|/*?\"<:>]");
 
-        public static void DownloadMyAudios(this VkApi api, Client client, string path, long count = 0) 
+        public static void Download(VkNet.Model.Attachments.Audio audio, string folder)
         {
-            if(!Directory.Exists(path)) {
-                Directory.CreateDirectory(path);
-            }
-
-            if(count == 0) {
-                count = api.Audio.GetCount(client.Id);
-                if(count == 0) {
-                    Console.WriteLine($"User '{client.Name}' has no music");
-                    return;
-                }
-            }
-
-            var audioParams = new AudioGetParams();
-            audioParams.OwnerId = client.Id;
-            audioParams.Count = count;
-
-            var audios = api.Audio.Get(audioParams);
-            var downloaded = 0;
-
-            using (var webClient = new WebClient())
+            if (!Directory.Exists(folder))
             {
-                foreach (var audio in audios)
-                {
-                    var url = audio.Url.DecodeAudioUrl();
-                    var title = $"{audio.Artist} - {audio.Title}";
-                    title = fileNamePattern.Replace(title, "");
+                Directory.CreateDirectory(folder);
+            }
 
-                    Console.WriteLine($"[{downloaded}/{count}] Downloading {title}");
+            var url = DecodeUrl(audio);
+            var title = $"{audio.Artist} - {audio.Title}";
+            title = fileNamePattern.Replace(title, "");
 
-                    try{
-                        webClient.DownloadFile(url, $"{path}/{title}.mp3");
-                    }
-                    catch(Exception e) {
-                        Console.WriteLine($"I cant download this file: {title}");
-                        Console.WriteLine($"Reason: {e.Message}");
-                    }
+            WebClient client = new WebClient();
 
-                    downloaded++;
-                }
+            Console.Write($"Downloading {title}");
+            
+            try {
+                client.DownloadFile(url, $"{folder}/{title}.mp3");
+                Console.Write("\t\t\tSuccess!\n");
+            }
+            catch(Exception e) {
+                Console.Write($"\t\t\tError! See log by [{DateTime.Now}]\n");
+                // TODO: Add exception to log
             }
         }
 
-        public static Uri DecodeAudioUrl(this Uri audioUrl)
+        public static Uri DecodeUrl(VkNet.Model.Attachments.Audio audio)
         {
+            var audioUrl = audio.Url;
             var segments = audioUrl.Segments.ToList();
 
             segments.RemoveAt((segments.Count - 1) / 2);

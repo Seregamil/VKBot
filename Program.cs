@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Linq;
 
 using VK_bot.Utils;
@@ -56,7 +57,16 @@ namespace VK_bot
 
             Console.WriteLine(users.TotalCount);*/
 
-            api.DownloadMyAudios(client, $"Audio/{client.Id}");
+            var audioParams = new AudioGetParams();
+            audioParams.OwnerId = client.Id;
+            audioParams.Count = 10;
+
+            var audios = api.Audio.Get(audioParams);
+
+            foreach (var audio in audios)
+            {
+                Audio.Download(audio, $"Audio/{client.Id}");
+            }
             
             /*var getLongPollServer = api.Messages.GetLongPollServer();
             Console.WriteLine(getLongPollServer.Key);*/

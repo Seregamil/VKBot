@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "h:\\VK-bot\\VK-bot.csproj": {}
+    "H:\\VK-bot\\VK-bot.csproj": {}
   },
   "projects": {
-    "h:\\VK-bot\\VK-bot.csproj": {
+    "H:\\VK-bot\\VK-bot.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "h:\\VK-bot\\VK-bot.csproj",
+        "projectUniqueName": "H:\\VK-bot\\VK-bot.csproj",
         "projectName": "VK-bot",
-        "projectPath": "h:\\VK-bot\\VK-bot.csproj",
+        "projectPath": "H:\\VK-bot\\VK-bot.csproj",
         "packagesPath": "C:\\Users\\Админ\\.nuget\\packages\\",
-        "outputPath": "h:\\VK-bot\\obj\\",
+        "outputPath": "H:\\VK-bot\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
