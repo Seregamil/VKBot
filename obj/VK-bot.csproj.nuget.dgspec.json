@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "H:\\VK-bot\\VK-bot.csproj": {}
+    "h:\\VK-bot\\VK-bot.csproj": {}
   },
   "projects": {
-    "H:\\VK-bot\\VK-bot.csproj": {
+    "h:\\VK-bot\\VK-bot.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "H:\\VK-bot\\VK-bot.csproj",
+        "projectUniqueName": "h:\\VK-bot\\VK-bot.csproj",
         "projectName": "VK-bot",
-        "projectPath": "H:\\VK-bot\\VK-bot.csproj",
+        "projectPath": "h:\\VK-bot\\VK-bot.csproj",
         "packagesPath": "C:\\Users\\Админ\\.nuget\\packages\\",
-        "outputPath": "H:\\VK-bot\\obj\\",
+        "outputPath": "h:\\VK-bot\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
@@ -41,6 +41,16 @@
       },
       "frameworks": {
         "netcoreapp3.1": {
+          "dependencies": {
+            "VkNet": {
+              "target": "Package",
+              "version": "[1.48.1, )"
+            },
+            "VkNet.AudioBypassService": {
+              "target": "Package",
+              "version": "[1.5.3, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
