@@ -1,0 +1,60 @@
+using System;
+using System.Net;
+using System.Linq;
+
+using VK_bot.Utils;
+
+using VkNet;
+using VkNet.Enums.Filters;
+using VkNet.Model;
+using VkNet.AudioBypassService.Extensions;
+
+using Microsoft.Extensions.DependencyInjection;
+using VkNet.Model.RequestParams;
+
+namespace VK_bot
+{
+    class Program
+    {
+        public const ulong ApplicationId = 6095910;
+
+        static void Main(string[] args)
+        {
+            var services = new ServiceCollection();
+            services.AddAudioBypass();
+
+            var api = new VkApi(services);
+
+            Console.WriteLine("Enter your login: ");
+            var login = Console.ReadLine();
+
+            Console.WriteLine("Enter your password: ");
+            var password = Console.ReadLine();
+
+            api.Authorize(new ApiAuthParams
+            {
+                ApplicationId = ApplicationId,
+                Login = login,
+                Password = password,
+                Settings = Settings.All
+            });
+
+            var client = new Client(api.Users.Get(new long[] { api.UserId.Value }).FirstOrDefault());
+
+            Console.WriteLine($"Welcome {client.Name}");
+
+            
+            /*var audioParams = new AudioGetParams();
+            audioParams.OwnerId = client.Id;
+            audioParams.Count = api.Audio.GetCount(client.Id);
+
+            var audios = api.Audio.Get(audioParams);
+
+            foreach (var audio in audios)
+            {
+                Audio.Download(audio, $"Audio/{client.Id}");
+            }*/
+
+        }
+    }
+}
