@@ -5,14 +5,14 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 
-using VK_bot.Utils;
-
 using VkNet;
 using VkNet.Enums.Filters;
 using VkNet.Enums.SafetyEnums;
 using VkNet.Model;
 using VkNet.Model.Attachments;
 using VkNet.AudioBypassService.Extensions;
+
+using Newtonsoft.Json;
 
 using Microsoft.Extensions.DependencyInjection;
 using VkNet.Model.RequestParams;
@@ -30,7 +30,6 @@ namespace VK_bot
             services.AddAudioBypass();
 
             var api = new VkApi(services);
-
             api.Authorize(new ApiAuthParams
             {
                 AccessToken = AccessToken
@@ -50,33 +49,148 @@ namespace VK_bot
                 if (poll?.Updates == null)
                     continue;
 
-                Task.Factory.StartNew(() =>
-                { // новый таск на события в целом
-                    foreach (var action in poll.Updates)
+                Task.Factory.StartNew(() => {
+                    foreach (var update in poll.Updates)
                     {
-                        if (action.Type == GroupUpdateType.MessageNew)
+                        if (update.Type == GroupUpdateType.MessageNew)
                         {
-                            Task.Factory.StartNew(() => VK_bot.Actions.Group.MessageNew.Execute(api, action));
-                        }
-                        if (action.Type == GroupUpdateType.AudioNew)
-                        {
-                            Task.Factory.StartNew(() => VK_bot.Actions.Group.AudioNew.Execute(api, action));
-                        }
-                        if (action.Type == GroupUpdateType.GroupJoin)
-                        {
-                            Task.Factory.StartNew(() => VK_bot.Actions.Group.Join.Execute(api, action));
-                        }
-                        if (action.Type == GroupUpdateType.GroupLeave)
-                        {
-                            Task.Factory.StartNew(() => VK_bot.Actions.Group.Leave.Execute(api, action));
-                        }
-                        if (action.Type == GroupUpdateType.WallPostNew)
-                        {
-
+                            var message = update.MessageNew.Message;
+                            var userName = GetNameById(api, message.FromId);
+                            
+                            Console.WriteLine($"[{message.Date.Value}] {userName} {message.Text}");
+                            
+                            GetMessageAttachments(api, message, message.FromId.Value);
+                            RecursiveForwardMessages(api, message, message.FromId.Value);
                         }
                     }
                 });
             }
+        }
+
+        public static void RecursiveForwardMessages(VkApi api, Message message, long ownerId, string level = "\t")
+        {
+            if (message.ForwardedMessages.Count > 0)
+            {
+                var forwardMessages = message.ForwardedMessages;
+
+                foreach (var forwardMessage in forwardMessages)
+                {
+                    var userName = GetNameById(api, forwardMessage.FromId);
+
+                    Console.WriteLine($"{level}[{forwardMessage.Date.Value}] {userName} {forwardMessage.Text}");
+                    GetMessageAttachments(api, forwardMessage, ownerId);
+
+                    if (forwardMessage.ForwardedMessages.Count > 0)
+                        RecursiveForwardMessages(api, forwardMessage, ownerId, level + "\t");
+                }
+            }
+        }
+
+        public static void GetMessageAttachments(VkApi api, Message message, long ownerId)
+        {
+            if (message.Attachments.Count == 0)
+            {
+                return;
+            }
+
+            var attachments = message.Attachments;
+            var date = message.Date.Value;
+
+            foreach (var attachment in attachments)
+            {
+                if (attachment.Type == typeof(Audio))
+                {
+                    var audio = (Audio)attachment.Instance;
+                    var url = audio.Url;
+                    var shortUrl = api.Utils.GetShortLink(url, false).ShortUrl;
+                    var audioName = $"Artist: {audio.Artist}\nTitle: {audio.Title}\nLink: {shortUrl}";
+
+                    Console.WriteLine($"\t[{date}] Audio attachment: {audioName}");
+                    
+                    Task.Factory.StartNew(() => {
+                            api.Messages.Send(new MessagesSendParams
+                            {
+                                RandomId = new Random().Next(),
+                                UserId = message.FromId,
+                                Message = audioName
+                            });
+                        }
+                    );
+
+                    Task.Factory.StartNew(() => Utils.Download.Audio(audio, $"Audio/{message.FromId}"));
+                    continue;
+                }
+
+                if (attachment.Type == typeof(Document))
+                {
+                    var doc = (Document)attachment.Instance;
+
+                    continue;
+                }
+
+                if (attachment.Type == typeof(Photo))
+                {
+                    var photo = (Photo)attachment.Instance;
+                    var owner = GetNameById(api, photo.OwnerId);
+
+                    Console.WriteLine($"[{date}] Photo from {owner}");
+
+                    Task.Factory.StartNew(() => Utils.Download.Photo(photo, $"Photo/{owner}_{message.FromId.Value}"));
+
+                    Task.Factory.StartNew(() =>
+                    {
+                        var msg = string.Empty;
+
+                        foreach(var p in photo.Sizes) {
+                            var shortUrl = api.Utils.GetShortLink(p.Url, false).ShortUrl;
+                            msg += $"Size: {p.Height}x{p.Width} - Url: {shortUrl}\n";
+                        }
+
+                        api.Messages.Send(new MessagesSendParams
+                        {
+                            RandomId = new Random().Next(),
+                            UserId = ownerId,
+                            Message = msg
+                        });
+                    });
+                    continue;
+                }
+
+                if (attachment.Type == typeof(AudioMessage))
+                {
+                    var audio = (AudioMessage)attachment.Instance;
+                    
+                    var owner = GetNameById(api, audio.OwnerId);
+                    var duration = TimeSpan.FromSeconds(audio.Duration);
+
+                    var url = audio.LinkMp3;
+                    var shortUrl = api.Utils.GetShortLink(url, false).ShortUrl;
+
+                    Console.WriteLine($"[{date}] Audio message from {owner}. Duration: {duration}. Link: {shortUrl}");
+
+                    Task.Factory.StartNew(() =>
+                    {
+                        api.Messages.Send(new MessagesSendParams
+                        {
+                            RandomId = new Random().Next(),
+                            UserId = ownerId,
+                            Message = $"Owner: {owner}\nDuration: {duration}\nLink: {shortUrl}"
+                        });
+                    });
+
+                    var folderDate = date.ToString("dd-MM-yyyy");
+                    Task.Factory.StartNew(() => Utils.Download.AudioMessage(audio, $"AudioMessage/{owner}_{message.FromId.Value}/{folderDate}"));
+                    continue;
+                }
+            }
+        }
+
+        public static string GetNameById(VkApi api, long? id)
+        {
+            long userId = (long)id;
+            var handle = api.Users.Get(new long[] { userId }).FirstOrDefault();
+            var name = $"{handle.FirstName} {handle.LastName}";
+            return name;
         }
     }
 }
