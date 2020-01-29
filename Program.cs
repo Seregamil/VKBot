@@ -59,20 +59,24 @@ namespace VK_bot
                             
                             Console.WriteLine($"[{message.Date.Value}] {userName} {message.Text}");
                             
-                            GetMessageAttachments(api, message, message.FromId.Value);
-                            RecursiveForwardMessages(api, message, message.FromId.Value);
+                            var attachmentsCount = GetMessageAttachments(api, message, message.FromId.Value);
+                            var forwardCount = RecursiveForwardMessages(api, message, message.FromId.Value);
+
+                            if(attachmentsCount != 0 || forwardCount != 0)
+                                continue;
+                            
+                            // chatbot
                         }
                     }
                 });
             }
         }
 
-        public static void RecursiveForwardMessages(VkApi api, Message message, long ownerId, string level = "\t")
+        public static int RecursiveForwardMessages(VkApi api, Message message, long ownerId, string level = "\t")
         {
-            if (message.ForwardedMessages.Count > 0)
+            var forwardMessages = message.ForwardedMessages;
+            if (forwardMessages.Count > 0)
             {
-                var forwardMessages = message.ForwardedMessages;
-
                 foreach (var forwardMessage in forwardMessages)
                 {
                     var userName = GetNameById(api, forwardMessage.FromId);
@@ -84,13 +88,15 @@ namespace VK_bot
                         RecursiveForwardMessages(api, forwardMessage, ownerId, level + "\t");
                 }
             }
+
+            return forwardMessages.Count;
         }
 
-        public static void GetMessageAttachments(VkApi api, Message message, long ownerId)
+        public static int GetMessageAttachments(VkApi api, Message message, long ownerId)
         {
             if (message.Attachments.Count == 0)
             {
-                return;
+                return 0;
             }
 
             var attachments = message.Attachments;
@@ -183,6 +189,7 @@ namespace VK_bot
                     continue;
                 }
             }
+            return message.Attachments.Count;
         }
 
         public static string GetNameById(VkApi api, long? id)
