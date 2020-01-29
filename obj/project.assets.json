@@ -88,6 +88,15 @@
           "lib/netstandard1.0/_._": {}
         }
       },
+      "morelinq/3.3.2": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/MoreLinq.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/MoreLinq.dll": {}
+        }
+      },
       "Newtonsoft.Json/12.0.3": {
         "type": "package",
         "compile": {
@@ -1263,6 +1272,27 @@
         "microsoft.netcore.targets.1.1.0.nupkg.sha512",
         "microsoft.netcore.targets.nuspec",
         "runtime.json"
+      ]
+    },
+    "morelinq/3.3.2": {
+      "sha512": "MQc8GppZJLmjvcpEdf3EkC6ovsp7gRWt2e5mC7dcIOrgwSc+yjFd3JQ0iRqr3XrUT6rb/phv0IkEmBtbfVA7AQ==",
+      "type": "package",
+      "path": "morelinq/3.3.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "COPYING.txt",
+        "lib/net451/MoreLinq.dll",
+        "lib/net451/MoreLinq.pdb",
+        "lib/net451/MoreLinq.xml",
+        "lib/netstandard1.0/MoreLinq.dll",
+        "lib/netstandard1.0/MoreLinq.pdb",
+        "lib/netstandard1.0/MoreLinq.xml",
+        "lib/netstandard2.0/MoreLinq.dll",
+        "lib/netstandard2.0/MoreLinq.pdb",
+        "lib/netstandard2.0/MoreLinq.xml",
+        "morelinq.3.3.2.nupkg.sha512",
+        "morelinq.nuspec"
       ]
     },
     "Newtonsoft.Json/12.0.3": {
@@ -3930,7 +3960,8 @@
     ".NETCoreApp,Version=v3.1": [
       "Newtonsoft.Json >= 12.0.3",
       "VkNet >= 1.48.1",
-      "VkNet.AudioBypassService >= 1.5.3"
+      "VkNet.AudioBypassService >= 1.5.3",
+      "morelinq >= 3.3.2"
     ]
   },
   "packageFolders": {
@@ -3986,6 +4017,10 @@
           "VkNet.AudioBypassService": {
             "target": "Package",
             "version": "[1.5.3, )"
+          },
+          "morelinq": {
+            "target": "Package",
+            "version": "[3.3.2, )"
           }
         },
         "imports": [

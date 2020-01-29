@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 
 using System.Threading.Tasks;
+
+using MoreLinq;
 using VkNet.Model.Attachments;
 
 namespace VK_bot.Utils
@@ -54,8 +56,9 @@ namespace VK_bot.Utils
         public static void Photo(Photo photoArray, string folder) {
             // Photo/Sergey Milantyev/650x442
             var date = photoArray.CreateTime.Value.ToString("dd-MM-yyyy (hh-mm-ss)");
+            var sizes = photoArray.Sizes.OrderBy(x => x.Height).DistinctBy(x => x.Height).ToList();
 
-            foreach(var photo in photoArray.Sizes) {
+            foreach(var photo in sizes) {
                 var path = $"{folder}/{photo.Height}x{photo.Width}";
                 
                 if (!Directory.Exists(path))

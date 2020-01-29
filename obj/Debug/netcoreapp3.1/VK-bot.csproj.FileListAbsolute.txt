@@ -25,3 +25,4 @@ H:\VK-bot\obj\Debug\netcoreapp3.1\VK-bot.AssemblyInfo.cs
 H:\VK-bot\obj\Debug\netcoreapp3.1\VK-bot.csproj.CopyComplete
 H:\VK-bot\obj\Debug\netcoreapp3.1\VK-bot.dll
 H:\VK-bot\obj\Debug\netcoreapp3.1\VK-bot.pdb
+H:\VK-bot\bin\Debug\netcoreapp3.1\MoreLinq.dll

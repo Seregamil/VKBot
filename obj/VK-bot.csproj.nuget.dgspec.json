@@ -53,6 +53,10 @@
             "VkNet.AudioBypassService": {
               "target": "Package",
               "version": "[1.5.3, )"
+            },
+            "morelinq": {
+              "target": "Package",
+              "version": "[3.3.2, )"
             }
           },
           "imports": [

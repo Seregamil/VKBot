@@ -12,10 +12,11 @@ using VkNet.Model;
 using VkNet.Model.Attachments;
 using VkNet.AudioBypassService.Extensions;
 
-using Newtonsoft.Json;
+using MoreLinq;
 
 using Microsoft.Extensions.DependencyInjection;
 using VkNet.Model.RequestParams;
+
 
 namespace VK_bot
 {
@@ -64,8 +65,42 @@ namespace VK_bot
 
                             if(attachmentsCount != 0 || forwardCount != 0)
                                 continue;
+
+
+                            var text = message.Text.Trim();
                             
+                            var indexOfDash = text.IndexOf('-');
+                            if(indexOfDash != -1 && (indexOfDash == 2 || indexOfDash == 3 )) {
+                                var translateText = text;
+                                var fromLang = translateText.Substring(0, indexOfDash); // get val of from
+                            
+                                if(Utils.Translate.LanguageCodes.Contains(fromLang)) {
+                                    translateText = translateText.Remove(0, indexOfDash + 1); // rem this val
+                                    indexOfDash = translateText.IndexOf(' '); // get pos of next ' '
+                                    
+                                    var toLang = translateText.Substring(0, indexOfDash);
+
+                                    if(Utils.Translate.LanguageCodes.Contains(toLang)) {
+                                        translateText = translateText.Remove(0, indexOfDash).Trim().ToLower(); // rem this val
+                                        
+                                        Task.Factory.StartNew(() =>
+                                        {
+                                            var resultOfTranslate = Utils.Translate.Google(translateText, toLang, fromLang);
+                                            Console.WriteLine($"Translate {fromLang}-{toLang} {resultOfTranslate}");
+
+                                            api.Messages.Send(new MessagesSendParams
+                                            {
+                                                RandomId = new Random().Next(),
+                                                UserId = message.FromId,
+                                                Message = $"{translateText}\n{resultOfTranslate}"
+                                            });
+                                        });
+                                    }
+                                }
+                            }
+
                             // chatbot
+                            // TODO: https://nlpub.mipt.ru/Russian_Distributional_Thesaurus
                         }
                     }
                 });
@@ -109,7 +144,7 @@ namespace VK_bot
                     var audio = (Audio)attachment.Instance;
                     var url = audio.Url;
                     var shortUrl = api.Utils.GetShortLink(url, false).ShortUrl;
-                    var audioName = $"Artist: {audio.Artist}\nTitle: {audio.Title}\nLink: {shortUrl}";
+                    var audioName = $"Artist: {audio.Artist}\n\tTitle: {audio.Title}\n\tLink: {shortUrl}";
 
                     Console.WriteLine($"\t[{date}] Audio attachment: {audioName}");
                     
@@ -147,7 +182,9 @@ namespace VK_bot
                     {
                         var msg = string.Empty;
 
-                        foreach(var p in photo.Sizes) {
+                        var sizes = photo.Sizes.OrderBy(x => x.Height).DistinctBy(x => x.Height).ToList();
+
+                        foreach(var p in sizes) {
                             var shortUrl = api.Utils.GetShortLink(p.Url, false).ShortUrl;
                             msg += $"Size: {p.Height}x{p.Width} - Url: {shortUrl}\n";
                         }
