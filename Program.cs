@@ -1,45 +1,54 @@
 ﻿using System;
-using System.Net;
+using System.IO;
 using System.Linq;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Threading.Tasks;
-
+using CXXY.Services;
 using VkNet;
-using VkNet.Enums.Filters;
 using VkNet.Enums.SafetyEnums;
 using VkNet.Model;
 using VkNet.Model.Attachments;
 using VkNet.AudioBypassService.Extensions;
 
 using MoreLinq;
-
 using Microsoft.Extensions.DependencyInjection;
+using VkNet.Abstractions;
 using VkNet.Model.RequestParams;
+using VkNet.Utils;
 
-
-namespace VK_bot
+namespace CXXY
 {
     class Program
     {
-        public const string AccessToken = "ee1d817c3736efca799d562e81e5d5938cc3b45835b70af26bdc1fe56f90e5b0b1c41aa75fe68cc22a33e";
-        public const ulong GroupId = 183376662;
+        private const string AccessToken = "180e4d0f90ca3075680cb0fe3a037e0e84f3548639d2bb935918222dce59c7086693dc5a9633e3f5531ad";
+        private const ulong GroupId = 183376662;
+        public static VkApi Api;
 
         static void Main(string[] args)
         {
-            var services = new ServiceCollection();
+            var vk = new Vk(GroupId, AccessToken);
+
+            while (true)
+            {
+                var line = Console.ReadLine();
+                if (line == ":q!")
+                {
+                    vk.Stop();
+                    break;
+                }
+            }
+            /*var services = new ServiceCollection();
             services.AddAudioBypass();
 
-            var api = new VkApi(services);
-            api.Authorize(new ApiAuthParams
+            Api = new VkApi(services);
+            Api.Authorize(new ApiAuthParams
             {
                 AccessToken = AccessToken
             });
 
             while (true)
             {
-                var server = api.Groups.GetLongPollServer(GroupId);
-                var poll = api.Groups.GetBotsLongPollHistory(new BotsLongPollHistoryParams()
+                var server = Api.Groups.GetLongPollServer(GroupId);
+                var poll = Api.Groups.GetBotsLongPollHistory(new BotsLongPollHistoryParams()
                 {
                     Server = server.Server,
                     Ts = server.Ts,
@@ -50,191 +59,89 @@ namespace VK_bot
                 if (poll?.Updates == null)
                     continue;
 
-                Task.Factory.StartNew(() => {
+                Task.Factory.StartNew(async () => {
                     foreach (var update in poll.Updates)
                     {
-                        if (update.Type == GroupUpdateType.MessageNew)
+                        if (update.Type != GroupUpdateType.MessageNew) 
+                            continue;
+                        
+                        var message = update.MessageNew.Message;
+                        var userName = GetNameById(Api, message.FromId);
+
+                        if (message.Date == null)
+                            return;
+
+                        Console.WriteLine($"[{message.Date.Value}] {userName} {message.Text}");
+
+                        if (message.FromId == null)
+                            return;
+                        
+                        var attachmentsCount = await GetMessageAttachments(Api, message, message.FromId.Value);
+                        var forwardCount = await RecursiveForwardMessages(Api, message, message.FromId.Value);
+
+                        if (attachmentsCount != 0 || forwardCount != 0)
+                            continue;
+                            
+                        var text = message.Text
+                            .ToLower()
+                            .Trim();
+
+                        if (text.IndexOf("альбом: ", StringComparison.Ordinal) == 0)
                         {
-                            var message = update.MessageNew.Message;
-                            var userName = GetNameById(api, message.FromId);
-                            
-                            Console.WriteLine($"[{message.Date.Value}] {userName} {message.Text}");
-                            
-                            var attachmentsCount = GetMessageAttachments(api, message, message.FromId.Value);
-                            var forwardCount = RecursiveForwardMessages(api, message, message.FromId.Value);
+                            var dirName = "Album/";
+                            if (!Directory.Exists(dirName))
+                                Directory.CreateDirectory(dirName);
 
-                            if(attachmentsCount != 0 || forwardCount != 0)
-                                continue;
-
-
-                            var text = message.Text.Trim();
-                            
-                            var indexOfDash = text.IndexOf('-');
-                            if(indexOfDash != -1 && (indexOfDash == 2 || indexOfDash == 3 )) {
-                                var translateText = text;
-                                var fromLang = translateText.Substring(0, indexOfDash); // get val of from
-                            
-                                if(Utils.Translate.LanguageCodes.Contains(fromLang)) {
-                                    translateText = translateText.Remove(0, indexOfDash + 1); // rem this val
-                                    indexOfDash = translateText.IndexOf(' '); // get pos of next ' '
-                                    
-                                    var toLang = translateText.Substring(0, indexOfDash);
-
-                                    if(Utils.Translate.LanguageCodes.Contains(toLang)) {
-                                        translateText = translateText.Remove(0, indexOfDash).Trim().ToLower(); // rem this val
-                                        
-                                        Task.Factory.StartNew(() =>
-                                        {
-                                            var resultOfTranslate = Utils.Translate.Google(translateText, toLang, fromLang);
-                                            Console.WriteLine($"Translate {fromLang}-{toLang} {resultOfTranslate}");
-
-                                            api.Messages.Send(new MessagesSendParams
-                                            {
-                                                RandomId = new Random().Next(),
-                                                UserId = message.FromId,
-                                                Message = $"{translateText}\n{resultOfTranslate}"
-                                            });
-                                        });
-                                    }
-                                }
+                            var ownerIdC = text.Remove(0, 8);
+                            long ownerId = 0;
+                            try
+                            {
+                                ownerId = Convert.ToInt64(ownerIdC);
+                            }
+                            catch
+                            {
+                                await Utils.Message.Send(message.FromId, "Проблема с парсингом ID");
+                                return;
                             }
 
-                            // chatbot
-                            // TODO: https://nlpub.mipt.ru/Russian_Distributional_Thesaurus
+                            dirName = $"{dirName}{ownerId}/";
+                            if(!Directory.Exists(dirName))
+                                Directory.CreateDirectory(dirName);
+
+                            var count = 0;
+                            if (ownerId < 0)
+                                count = await Api.Photo.GetAlbumsCountAsync(null, ownerId);
+                            else
+                                count = await Api.Photo.GetAlbumsCountAsync(ownerId);
+                            
+                            await Utils.Message.Send(message.FromId, ownerId < 0
+                                ? $"Сохраняем альбомы сообщества {ownerId}"
+                                : $"Сохраняем альбомы пользователя {ownerId}");
+
+                            await Utils.Message.Send(message.FromId, $"Общее количество: {count}");
+                            
+                            var collection = await Api.Photo.GetAlbumsAsync(new PhotoGetAlbumsParams
+                            {
+                                // AlbumIds = null,
+                                // Count = null,
+                                // NeedCovers = null,
+                                // NeedSystem = null,
+                                // Offset = null,
+                                OwnerId = ownerId
+                            });
+                            
+                            collection.ForEach(x =>
+                            {
+                                var collectionDirectory = $"{dirName}{x.Title}";
+                                if(!Directory.Exists(collectionDirectory))
+                                    Directory.CreateDirectory(collectionDirectory);
+                                
+                                
+                            });
                         }
                     }
                 });
-            }
-        }
-
-        public static int RecursiveForwardMessages(VkApi api, Message message, long ownerId, string level = "\t")
-        {
-            var forwardMessages = message.ForwardedMessages;
-            if (forwardMessages.Count > 0)
-            {
-                foreach (var forwardMessage in forwardMessages)
-                {
-                    var userName = GetNameById(api, forwardMessage.FromId);
-
-                    Console.WriteLine($"{level}[{forwardMessage.Date.Value}] {userName} {forwardMessage.Text}");
-                    GetMessageAttachments(api, forwardMessage, ownerId);
-
-                    if (forwardMessage.ForwardedMessages.Count > 0)
-                        RecursiveForwardMessages(api, forwardMessage, ownerId, level + "\t");
-                }
-            }
-
-            return forwardMessages.Count;
-        }
-
-        public static int GetMessageAttachments(VkApi api, Message message, long ownerId)
-        {
-            if (message.Attachments.Count == 0)
-            {
-                return 0;
-            }
-
-            var attachments = message.Attachments;
-            var date = message.Date.Value;
-
-            foreach (var attachment in attachments)
-            {
-                if (attachment.Type == typeof(Audio))
-                {
-                    var audio = (Audio)attachment.Instance;
-                    var url = audio.Url;
-                    var shortUrl = api.Utils.GetShortLink(url, false).ShortUrl;
-                    var audioName = $"Artist: {audio.Artist}\n\tTitle: {audio.Title}\n\tLink: {shortUrl}";
-
-                    Console.WriteLine($"\t[{date}] Audio attachment: {audioName}");
-                    
-                    Task.Factory.StartNew(() => {
-                            api.Messages.Send(new MessagesSendParams
-                            {
-                                RandomId = new Random().Next(),
-                                UserId = message.FromId,
-                                Message = audioName
-                            });
-                        }
-                    );
-
-                    Task.Factory.StartNew(() => Utils.Download.Audio(audio, $"Audio/{message.FromId}"));
-                    continue;
-                }
-
-                if (attachment.Type == typeof(Document))
-                {
-                    var doc = (Document)attachment.Instance;
-
-                    continue;
-                }
-
-                if (attachment.Type == typeof(Photo))
-                {
-                    var photo = (Photo)attachment.Instance;
-                    var owner = GetNameById(api, photo.OwnerId);
-
-                    Console.WriteLine($"[{date}] Photo from {owner}");
-
-                    Task.Factory.StartNew(() => Utils.Download.Photo(photo, $"Photo/{owner}_{message.FromId.Value}"));
-
-                    Task.Factory.StartNew(() =>
-                    {
-                        var msg = string.Empty;
-
-                        var sizes = photo.Sizes.OrderBy(x => x.Height).DistinctBy(x => x.Height).ToList();
-
-                        foreach(var p in sizes) {
-                            var shortUrl = api.Utils.GetShortLink(p.Url, false).ShortUrl;
-                            msg += $"Size: {p.Height}x{p.Width} - Url: {shortUrl}\n";
-                        }
-
-                        api.Messages.Send(new MessagesSendParams
-                        {
-                            RandomId = new Random().Next(),
-                            UserId = ownerId,
-                            Message = msg
-                        });
-                    });
-                    continue;
-                }
-
-                if (attachment.Type == typeof(AudioMessage))
-                {
-                    var audio = (AudioMessage)attachment.Instance;
-                    
-                    var owner = GetNameById(api, audio.OwnerId);
-                    var duration = TimeSpan.FromSeconds(audio.Duration);
-
-                    var url = audio.LinkMp3;
-                    var shortUrl = api.Utils.GetShortLink(url, false).ShortUrl;
-
-                    Console.WriteLine($"[{date}] Audio message from {owner}. Duration: {duration}. Link: {shortUrl}");
-
-                    Task.Factory.StartNew(() =>
-                    {
-                        api.Messages.Send(new MessagesSendParams
-                        {
-                            RandomId = new Random().Next(),
-                            UserId = ownerId,
-                            Message = $"Owner: {owner}\nDuration: {duration}\nLink: {shortUrl}"
-                        });
-                    });
-
-                    var folderDate = date.ToString("dd-MM-yyyy");
-                    Task.Factory.StartNew(() => Utils.Download.AudioMessage(audio, $"AudioMessage/{owner}_{message.FromId.Value}/{folderDate}"));
-                    continue;
-                }
-            }
-            return message.Attachments.Count;
-        }
-
-        public static string GetNameById(VkApi api, long? id)
-        {
-            long userId = (long)id;
-            var handle = api.Users.Get(new long[] { userId }).FirstOrDefault();
-            var name = $"{handle.FirstName} {handle.LastName}";
-            return name;
+            }*/
         }
     }
 }

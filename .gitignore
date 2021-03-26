@@ -3,4 +3,5 @@ Photo/
 AudioMessage/
 bin/
 obj/
+.vscode/
 codes.txt
